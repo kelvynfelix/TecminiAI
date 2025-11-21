@@ -4,7 +4,7 @@ import API  # sua API com perguntar_escola()
 
 
 # -------------------------
-# Função segura para chamadas de UI (compatível com várias versões)
+# Função segura para chamadas de UI
 # -------------------------
 def get_scheduler(page: ft.Page):
     if hasattr(page, "call_from_thread"):
@@ -21,13 +21,13 @@ def get_scheduler(page: ft.Page):
 # Chat App
 # -------------------------
 class ChatApp(ft.Column):
-    def __init__(self, page):
+    def __init__(self, page, drawer):
         super().__init__()
         self.page = page
+        self.drawer = drawer
         self.expand = True
         self.spacing = 10
 
-        # scheduler compatível
         self._schedule = get_scheduler(page)
 
         # Área do chat
@@ -45,10 +45,10 @@ class ChatApp(ft.Column):
             on_submit=self.send_message,
         )
 
-        # Botão enviar — CORRIGIDO
+        # Botão enviar
         self.send_button = ft.FloatingActionButton(
-            icon=ft.icons.SEND,  # <- CORRETO
-            bgcolor=ft.colors.BLUE_800,
+            icon=ft.Icons.SEND,
+            bgcolor=ft.Colors.BLUE_800,
             on_click=self.send_message,
         )
 
@@ -58,12 +58,19 @@ class ChatApp(ft.Column):
                 controls=[self.new_message, self.send_button],
                 alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
             ),
-            bgcolor=ft.colors.with_opacity(0.08, ft.colors.WHITE),
+            bgcolor=ft.Colors.with_opacity(0.08, ft.Colors.WHITE),
             padding=10,
             border_radius=ft.border_radius.all(12),
         )
 
         self.controls = [self.chat_area, input_bar]
+
+    # -------------------------
+    # Limpar histórico
+    # -------------------------
+    def limpar_historico(self):
+        self.chat_area.controls.clear()
+        self.page.update()
 
     # -------------------------
     # Envio de mensagem
@@ -83,14 +90,13 @@ class ChatApp(ft.Column):
 
         threading.Thread(target=self.bot_reply, args=(texto,), daemon=True).start()
 
-    # Bolha do usuário
     def create_user_bubble(self, text):
         return ft.Row(
             alignment=ft.MainAxisAlignment.END,
             controls=[
                 ft.Container(
-                    content=ft.Text(text, size=16, color=ft.colors.WHITE),
-                    bgcolor=ft.colors.BLUE_800,
+                    content=ft.Text(text, size=16, color=ft.Colors.WHITE),
+                    bgcolor=ft.Colors.BLUE_800,
                     padding=10,
                     border_radius=ft.border_radius.all(12),
                     margin=ft.margin.only(left=80),
@@ -99,14 +105,13 @@ class ChatApp(ft.Column):
             ],
         )
 
-    # Bolha do bot
     def create_bot_bubble(self, text):
         return ft.Row(
             alignment=ft.MainAxisAlignment.START,
             controls=[
                 ft.Container(
-                    content=ft.Text(text, size=16, color=ft.colors.WHITE),
-                    bgcolor=ft.colors.GREY_800,
+                    content=ft.Text(text, size=16, color=ft.Colors.WHITE),
+                    bgcolor=ft.Colors.GREY_800,
                     padding=10,
                     border_radius=ft.border_radius.all(12),
                     margin=ft.margin.only(right=80),
@@ -128,23 +133,20 @@ class ChatApp(ft.Column):
                         "TecminiAI está digitando...",
                         size=15,
                         italic=True,
-                        color=ft.colors.GREY_500,
+                        color=ft.Colors.GREY_500,
                     ),
                     padding=10,
                 )
             ],
         )
 
-        # Adiciona "digitando..."
         self._schedule(lambda: self.show_typing(typing))
 
-        # Chamada API
         try:
             resposta = API.responder_com_gemini(user_text)
         except Exception as e:
             resposta = f"Erro ao gerar resposta: {e}"
 
-        # Mostra resposta
         self._schedule(lambda: self.show_bot_reply(typing, resposta))
 
     def show_typing(self, typing_row):
@@ -159,7 +161,6 @@ class ChatApp(ft.Column):
 
         self.new_message.disabled = False
         self.send_button.disabled = False
-
         try:
             self.new_message.focus()
         except:
@@ -172,17 +173,169 @@ class ChatApp(ft.Column):
 # APP
 # -------------------------
 def main(page: ft.Page):
-    page.title = "TecminiAI"
+    page.window_full_screen = True
+    page.title = "TecminiAI - Login"
     page.theme_mode = ft.ThemeMode.DARK
-
-    # AGORA DO JEITO CERTO para Flet 0.24.1+
-    page.window.width = 600
-    page.window.height = 650
-
     page.padding = 20
+    page.bgcolor = ft.Colors.BLACK
 
-    app = ChatApp(page)
-    page.add(app)
+    # Campos de login
+    user_field = ft.TextField(
+        label="Usuário",
+        width=250,
+        on_submit=lambda e: pass_field.focus(),  # ENTER → vai para senha
+    )
+
+    pass_field = ft.TextField(
+        label="Senha",
+        password=True,
+        can_reveal_password=True,
+        width=250,
+         # ENTER → tenta login
+    )
+
+    error_text = ft.Text(
+        "",
+        color=ft.Colors.RED,
+        size=14,
+        visible=False,
+    )
+
+    def tentar_login(e):
+        if user_field.value == "admin" and pass_field.value == "admin":
+            carregar_chat()
+        else:
+            error_text.value = "Usuário ou senha incorretos."
+            error_text.visible = True
+            page.update()
+
+    pass_field = ft.TextField(
+        label="Senha",
+        password=True,
+        can_reveal_password=True,
+        width=250,
+        on_submit=tentar_login,  # ENTER → tenta login
+    )
+
+
+    login_button = ft.ElevatedButton(
+        "Entrar",
+        width=250,
+        bgcolor=ft.Colors.BLUE_700,
+        color=ft.Colors.WHITE,
+        on_click=tentar_login,
+    )
+
+    # QUADRADO FLUTUANTE
+    login_box = ft.Container(
+        content=ft.Column(
+            [
+                ft.Text("Login", size=22, weight=ft.FontWeight.BOLD),
+                user_field,
+                pass_field,
+                error_text,
+                login_button,
+            ],
+            horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+            spacing=20,
+        ),
+        width=350,
+        height=350,
+        padding=30,
+        bgcolor=ft.Colors.with_opacity(1, ft.Colors.BLACK),
+        border_radius=20,
+        alignment=ft.alignment.center,
+
+        # >>> AQUI: SOMBRA BRANCA <<<
+        shadow=ft.BoxShadow(
+            spread_radius=2,
+            blur_radius=14,
+            color=ft.Colors.with_opacity(0.25, ft.Colors.WHITE),
+            offset=ft.Offset(0, 10),
+        ),
+    )
+
+    # Layout centralizado
+    wrapper = ft.Container(
+        content=login_box,
+        expand=True,
+        alignment=ft.alignment.center,
+    )
+
+    page.add(wrapper)
+
+    # ----------------------------
+    # FUNÇÃO PARA CARREGAR O CHAT
+    # ----------------------------
+    def carregar_chat():
+        page.clean()
+        page.title = "TecminiAI"
+        page.bgcolor = ft.Colors.BLACK
+
+        def voltar_para_login():
+            page.clean()
+            page.appbar = None
+            page.drawer = None
+            page.update()
+            main(page)
+
+        drawer = ft.NavigationDrawer(
+            controls=[
+                ft.Container(
+                    content=ft.TextButton(
+                        "Limpar histórico",
+                        on_click=lambda _: app.limpar_historico(),
+                    ),
+                    padding=ft.padding.only(top=20)
+                ),
+
+                ft.Container(
+                    content=ft.TextButton(
+                        "Sair",
+                        on_click=lambda _: voltar_para_login(),
+                    ),
+                    padding=ft.padding.only(top=10)
+                )
+            ],
+        )
+
+        page.drawer = drawer
+
+        menu_button = ft.IconButton(
+            icon=ft.Icons.MENU,
+            on_click=lambda _: abrir_menu(),
+        )
+
+        def abrir_menu():
+            page.drawer.open = True
+            page.update()
+
+        global app
+        app = ChatApp(page, drawer)
+
+        page.appbar = ft.AppBar(
+            leading=menu_button,
+            title=ft.Text("TecminiAI"),
+            bgcolor=ft.Colors.with_opacity(0.1, ft.Colors.BLACK),
+        )
+
+        page.add(app)
+        page.update()
+
+
+
+def open_drawer(page):
+    page.drawer.open = True
+    page.update()
+
+
+def handle_drawer_select(e, app):
+    if e.control.selected_index == 0:
+        app.limpar_historico()
+
+    # fechar drawer
+    e.control.open = False
+    e.control.page.update()
 
 
 if __name__ == "__main__":
