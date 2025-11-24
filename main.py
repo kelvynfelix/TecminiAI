@@ -106,7 +106,7 @@ class ChatApp(ft.Column):
         i = 0
 
         # primeiro processa links
-        link_pat = re.compile(r"\[(.*?)\]\((.*?)\)")
+        link_pat = re.compile(r"\[(.*?)]\((.*?)\)")
         for match in link_pat.finditer(text):
             start, end = match.span()
             label = match.group(1)
