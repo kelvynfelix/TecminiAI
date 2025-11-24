@@ -1,5 +1,8 @@
-import flet as ft
+import re
 import threading
+
+import flet as ft
+
 import API  # sua API com perguntar_escola()
 
 
@@ -47,8 +50,8 @@ class ChatApp(ft.Column):
 
         # Botão enviar — CORRIGIDO
         self.send_button = ft.FloatingActionButton(
-            icon=ft.icons.SEND,  # <- CORRETO
-            bgcolor=ft.colors.BLUE_800,
+            icon=ft.Icons.SEND,
+            bgcolor=ft.Colors.BLUE_800,
             on_click=self.send_message,
         )
 
@@ -58,7 +61,7 @@ class ChatApp(ft.Column):
                 controls=[self.new_message, self.send_button],
                 alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
             ),
-            bgcolor=ft.colors.with_opacity(0.08, ft.colors.WHITE),
+            bgcolor=ft.Colors.with_opacity(0.08, ft.Colors.WHITE),
             padding=10,
             border_radius=ft.border_radius.all(12),
         )
@@ -89,8 +92,8 @@ class ChatApp(ft.Column):
             alignment=ft.MainAxisAlignment.END,
             controls=[
                 ft.Container(
-                    content=ft.Text(text, size=16, color=ft.colors.WHITE),
-                    bgcolor=ft.colors.BLUE_800,
+                    content=self.format_text(text),
+                    bgcolor=ft.Colors.BLUE_800,
                     padding=10,
                     border_radius=ft.border_radius.all(12),
                     margin=ft.margin.only(left=80),
@@ -99,18 +102,169 @@ class ChatApp(ft.Column):
             ],
         )
 
+    def format_text(self, text):
+        """
+        Converte **negrito** e [link](https://...) em widgets Flet.
+        """
+        patterns = [
+            (r"\*\*(.*?)\*\*", "bold"),  # negrito
+            (r"\[(.*?)\]\((.*?)\)", "link")  # links
+        ]
+
+        parts = []
+        i = 0
+
+        # Detecta links primeiro
+        for match in re.finditer(patterns[1][0], text):
+            start, end = match.span()
+            label = match.group(1)
+            url = match.group(2)
+
+            if start > i:
+                parts.append(ft.Text(text[i:start], size=16))
+
+            parts.append(
+                ft.TextButton(
+                    content=ft.Text(label, size=16, color=ft.Colors.BLUE),
+                    style=ft.ButtonStyle(
+                        padding=0,
+                        bgcolor="transparent",
+                        overlay_color="transparent",
+                    ),
+                    on_click=lambda _, link=url: self.page.launch_url(link),
+                )
+            )
+
+            i = end
+
+        text = text[i:]
+        i = 0
+
+        # Detecta negrito no trecho restante
+        for match in re.finditer(patterns[0][0], text):
+            start, end = match.span()
+            bold_text = match.group(1)
+
+            if start > i:
+                parts.append(ft.Text(text[i:start], size=16))
+
+            parts.append(ft.Text(bold_text, size=16, weight=ft.FontWeight.BOLD))
+            i = end
+
+        if i < len(text):
+            parts.append(ft.Text(text[i:], size=16))
+
+        return ft.Row(controls=parts, wrap=True, spacing=0)
+
+    def _make_link_callback(self, url):
+        return lambda e: self.page.launch_url(url)
+
+    # -----------------------------
+    # PARSER DE TEXTO COM:
+    # - **negrito**
+    # - * lista automática
+    # - [texto](link)
+    # -----------------------------
+    def parse_message(self, text):
+        lines = text.split("\n")
+        widgets = []
+
+        for line in lines:
+            stripped = line.strip()
+
+            # Bullet list
+            if stripped.startswith("* "):
+                item = stripped[2:]
+                widgets.append(
+                    ft.Row(
+                        controls=[
+                            ft.Text("•", size=16),
+                            self._rich_text(item)
+                        ],
+                        spacing=6
+                    )
+                )
+            else:
+                widgets.append(self._rich_text(stripped))
+
+        return widgets
+
+    # -----------------------------
+    # TEXTO RICO (negrito + links)
+    # -----------------------------
+    def _rich_text(self, text):
+        import re
+
+        bold_pat = re.compile(r"\*\*(.*?)\*\*")
+        link_pat = re.compile(r"\[(.*?)\]\((.*?)\)")
+
+        parts = []
+        i = 0
+
+        # Primeiro processa links
+        for match in link_pat.finditer(text):
+            start, end = match.span()
+            label = match.group(1)
+            url = match.group(2)
+
+            if start > i:
+                parts.append(ft.Text(text[i:start], size=16))
+
+            parts.append(
+                ft.TextButton(
+                    content=ft.Text(label, size=16, color=ft.Colors.BLUE_400),
+                    style=ft.ButtonStyle(
+                        padding=0,
+                        bgcolor="transparent",
+                        overlay_color="transparent",
+                    ),
+                    on_click=lambda e, link=url: self.page.launch_url(link),
+                )
+            )
+
+            i = end
+
+        # Texto restante sem links
+        text = text[i:]
+        i = 0
+
+        # Agora aplica negrito
+        for match in bold_pat.finditer(text):
+            start, end = match.span()
+            bold_txt = match.group(1)
+
+            if start > i:
+                parts.append(ft.Text(text[i:start], size=16))
+
+            parts.append(
+                ft.Text(bold_txt, size=16, weight=ft.FontWeight.BOLD)
+            )
+
+            i = end
+
+        if i < len(text):
+            parts.append(ft.Text(text[i:], size=16))
+
+        return ft.Row(controls=parts, spacing=0, wrap=True)
+
     # Bolha do bot
-    def create_bot_bubble(self, text):
+    def create_bot_bubble(self, raw_text):
+        content = self.parse_message(raw_text)
+
         return ft.Row(
             alignment=ft.MainAxisAlignment.START,
             controls=[
                 ft.Container(
-                    content=ft.Text(text, size=16, color=ft.colors.WHITE),
-                    bgcolor=ft.colors.GREY_800,
-                    padding=10,
+                    content=ft.Column(
+                        controls=content,
+                        spacing=5,
+                        tight=True
+                    ),
+                    bgcolor=ft.Colors.GREY_800,
+                    padding=12,
                     border_radius=ft.border_radius.all(12),
                     margin=ft.margin.only(right=80),
-                    width=min(520, max(120, len(text) * 8)),
+                    width=520,
                 )
             ],
         )
@@ -128,7 +282,7 @@ class ChatApp(ft.Column):
                         "TecminiAI está digitando...",
                         size=15,
                         italic=True,
-                        color=ft.colors.GREY_500,
+                        color=ft.Colors.GREY_500,
                     ),
                     padding=10,
                 )

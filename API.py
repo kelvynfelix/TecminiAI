@@ -22,14 +22,20 @@ PALAVROES = [
     "otario","otária","troxa","trouxa","burro","burra","cu","arrombado"
 ]
 
-def tem_palavrao(msg: str) -> bool:
+def tem_palavrao(msg):
     msg = msg.lower()
-    return any(p in msg for p in PALAVROES)
+    achou = False
+    for p in PALAVROES:
+        if p in msg:
+            achou = True
+
+    return achou
+
 
 # ======================================================
 # SISTEMA DE CONSULTA AO JSON (INTELIGENTE)
 # ======================================================
-def buscar_info_escola(msg: str):
+def buscar_info_escola(msg):
     msg_lower = msg.lower()
 
     # Diretoria
@@ -73,7 +79,7 @@ def buscar_info_escola(msg: str):
 # ======================================================
 # GEMINI (fallback automático)
 # ======================================================
-def responder_com_gemini(msg: str) -> str:
+def responder_com_gemini(msg):
     model = genai.GenerativeModel(MODEL)
     resposta = model.generate_content(
         f"""
@@ -96,7 +102,7 @@ def responder_com_gemini(msg: str) -> str:
 # ======================================================
 # FUNÇÃO PRINCIPAL
 # ======================================================
-def responder(msg: str) -> str:
+def responder(msg):
     msg = msg.strip()
     if not msg:
         return "Digite alguma coisa!"
