@@ -1,11 +1,11 @@
 import google.generativeai as genai
 import json
 import datetime
-
-# ======================================================
-# CONFIGURAR GEMINI
-# ======================================================
-genai.configure(api_key="AIzaSyDxfImhamvy77fb6vOo5-v6aZnnx1AGhkw")
+from dotenv import load_dotenv
+import os
+#               CONFIGURAR GEMINI
+load_dotenv()
+genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 MODEL = "gemini-2.5-flash"
 
 # ======================================================
