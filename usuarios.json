@@ -1,5 +1,9 @@
 {
     "users": [
-
+        {
+            "nome": "Kevin",
+            "username": "Kevin",
+            "password": "kevin"
+        }
     ]
 }
