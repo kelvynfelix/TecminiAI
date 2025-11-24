@@ -1,7 +1,6 @@
 import re
 import threading
 from time import sleep
-
 import flet as ft
 import API
 from usuarios import validar_login, criar_usuario, usuario_existe
