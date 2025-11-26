@@ -15,6 +15,31 @@ MODEL = "gemini-2.5-flash"
 # ======================================================
 with open("dados_escola.json", "r", encoding="utf-8") as f:
     dados = json.load(f)
+# ======================================================
+#
+# ======================================================
+def extrair_nome(msg):
+    msg = msg.lower()
+
+    padroes = [
+        "meu nome é ",
+        "me chama de ",
+        "me chame de ",
+        "pode me chamar de ",
+        "a partir de agora meu nome é ",
+        "agora meu nome é ",
+        "me trate como "
+    ]
+
+    for p in padroes:
+        if p in msg:
+            nome = msg.split(p, 1)[1].strip()
+            nome = nome.replace(".", "").split()[0]
+            return nome.capitalize()
+
+    return None
+
+
 
 # ======================================================
 # PALAVRÕES PARA BLOQUEAR
@@ -113,14 +138,16 @@ def responder_com_gemini(msg, usuario):
     resposta = model.generate_content(prompt).text
 
     # ------------ ATUALIZA A MEMÓRIA ------------
-    gatilhos = ["eu gosto", "meu nome é", "moro", "estudo", "minha idade"]
-    lower = msg.lower()
-
-    for g in gatilhos:
-        if g in lower:
+    nome_extraido = extrair_nome(msg)
+    if nome_extraido:
+        memoria["nome_usuario"] = nome_extraido
+        salvar_memoria(usuario, memoria)
+    else:
+        # Salva outras informações pessoais genéricas
+        gatilhos = ["eu gosto", "moro", "estudo", "minha idade"]
+        if any(g in msg.lower() for g in gatilhos):
             memoria["ultima_info"] = msg
             salvar_memoria(usuario, memoria)
-            break
 
     return resposta
 
@@ -128,31 +155,26 @@ def responder_com_gemini(msg, usuario):
 def eh_assunto_da_escola(msg):
     msg = msg.lower().strip()
 
-    # -----------------------------
-    # 1) Sempre permitido
-    # -----------------------------
-    sempre_ok = [
+    # 1) Sempre permitido — não bloqueia NADA aqui
+    cumprimentos = [
         "oi", "olá", "ola", "eae", "salve", "hey",
         "bom dia", "boa tarde", "boa noite",
         "tudo bem", "como você está", "como vai",
-        "beleza", "suave", "tranquilo",
-
-        "que dia é hoje", "que horas são",
-        "hora", "horas", "dia", "data",
-        "clima", "tempo", "temperatura", "agora"
+        "beleza", "suave", "tranquilo"
     ]
-    for p in sempre_ok:
-        if p in msg:
-            return True
+    if any(p in msg for p in cumprimentos):
+        return True
 
-    # -----------------------------
-    # 2) Palavras claramente da escola
-    # -----------------------------
+    # 2) Informações pessoais → sempre permitido (para salvar memória)
+    if any(p in msg for p in ["eu gosto", "meu nome", "minha idade", "moro", "estudo"]):
+        return True
+
+    # 3) Assuntos claramente da escola → permitido
     palavras_escola = [
-        "etec", "escola", "cônego", "conego", "jose bento", "josé bento",
+        "etec", "escola", "cônego", "jose bento", "josé bento",
         "diretor", "diretora", "vice", "coordenador",
         "professor", "professora",
-        "sala", "salas", "biblioteca", "lab", "laboratório", "quadra",
+        "sala", "biblioteca", "lab", "laboratório", "quadra",
         "curso", "cursos", "materia", "matéria", "disciplina",
         "horário", "horarios", "turma", "aluno", "aluna", "estudante",
         "secretaria", "rematrícula", "matrícula",
@@ -161,66 +183,33 @@ def eh_assunto_da_escola(msg):
     if any(p in msg for p in palavras_escola):
         return True
 
-    # -----------------------------
-    # 3) Lista de assuntos proibidos
-    # -----------------------------
+    # 4) Assuntos claramente proibidos
     proibidos = [
-        # tecnologia
-        "python", "programar", "programação", "javascript", "html",
-        "como faço um código", "faça um código", "faça um programa",
-
-        # jogos
-        "roblox", "minecraft", "fortnite", "jogo", "games",
-
-        # carros
-        "carro", "carro melhor", "carros",
-
-        # medicina
-        "doença", "remédio", "diagnóstico", "saúde",
-
-        # coisas ilegais
-        "hackear", "hack", "invadir", "crackear",
-
-        # entretenimento
+        "python", "programar", "javascript", "html",
+        "roblox", "minecraft", "fortnite",
+        "carro", "doença", "diagnóstico", "saúde",
+        "hackear", "invadir", "crackear",
         "filme", "série", "musica", "cantor", "cantora",
-
-        # filosofia / ciência não escolar
-        "física quântica", "universo", "cosmos",
-
-        # esportes
+        "universo", "cosmos",
         "futebol", "basquete",
-
-        # compras
         "comprar", "preço", "valor"
     ]
     if any(p in msg for p in proibidos):
         return False
 
-    # -----------------------------
-    # 4) Perguntas muito amplas → bloqueia
-    # -----------------------------
-    perguntas_muito_abertas = [
-        "me explique", "explique", "o que é", "defina",
-        "como funciona", "me ajude com"
-    ]
-    if any(msg.startswith(p) for p in perguntas_muito_abertas):
-        return False
-
-    # -----------------------------
-    # 5) Perguntas curtas → assume que é escolar
-    # -----------------------------
-    if len(msg.split()) <= 2:
+    # 5) Perguntas simples (leve) → permitido
+    if len(msg.split()) <= 3:
         return True
 
-    # -----------------------------
-    # 6) Perguntas com "qual", "quando", "quem"
-    # se não forem proibidas → ok
-    # -----------------------------
-    if msg.startswith(("quem", "quando", "qual", "como", "onde")):
+    # 6) Perguntas iniciadas com "quem", "qual", etc → permitido se não forem proibidas
+    if msg.startswith(("quem", "quando", "qual", "como", "onde", "por que")):
+        # Se tiver palavras proibidas → bloqueia
+        if any(p in msg for p in proibidos):
+            return False
         return True
 
-    # Se chegou aqui → não é claramente escolar
-    return False
+    # Default: permitido (leve)
+    return True
 
 
 # ======================================================

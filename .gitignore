@@ -1,4 +1,31 @@
+# Ambiente virtual
 .venv/
+env/
+venv/
+
+# Cache do Python
 __pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Configurações de IDE/editor
 .idea/
+.vscode/
+
+# Arquivos privados
 .env
+
+# Executáveis e builds
+*.exe
+*.dll
+*.so
+*.spec
+dist/
+build/
+
+# Logs
+*.log
+
+# exe
+TecminiAI.exe
