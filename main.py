@@ -131,6 +131,7 @@ class ChatApp(ft.Column):
 
         return ft.Row(controls=parts, spacing=0, wrap=True)
 
+    # noinspection PyMethodMayBeStatic
     def _split_bold_to_texts(self, text):
         """Divide o texto em partes normais e **negrito** e retorna lista de ft.Text"""
         out = []
@@ -183,11 +184,18 @@ class ChatApp(ft.Column):
 
     # simulador de reply do bot (chamada API)
     def bot_reply(self, user_text):
+        global usuario_logado  # <-- obrigatório para acessar o usuário logado
+
         typing = ft.Row(
             alignment=ft.MainAxisAlignment.START,
             controls=[
                 ft.Container(
-                    content=ft.Text("TecminiAI está digitando...", size=15, italic=True, color=ft.Colors.GREY_500),
+                    content=ft.Text(
+                        "TecminiAI está digitando...",
+                        size=15,
+                        italic=True,
+                        color=ft.Colors.GREY_500
+                    ),
                     padding=10,
                 )
             ],
@@ -197,7 +205,7 @@ class ChatApp(ft.Column):
         self._schedule(lambda: self.show_typing(typing))
 
         try:
-            resposta = API.responder_com_gemini(user_text)
+            resposta = API.responder(user_text, usuario_logado)
         except Exception as e:
             resposta = f"Erro ao gerar resposta: {e}"
 
@@ -247,8 +255,15 @@ def main(page: ft.Page):
         error_text = ft.Text("", color=ft.Colors.RED, visible=False)
 
         def tentar_login(e):
-            if validar_login(user_field.value.strip(), pass_field.value.strip()):
-                carregar_chat()
+            global usuario_logado
+
+            user = user_field.value.strip()
+            pwd = pass_field.value.strip()
+
+            if validar_login(user, pwd):
+                usuario_logado = user
+                print("Logado como:", usuario_logado)
+                carregar_chat()  # ← mantém o que já existia
             else:
                 error_text.value = "Usuário ou senha incorretos."
                 error_text.visible = True
@@ -328,6 +343,7 @@ def main(page: ft.Page):
                 msg_nome.visible = False
             page.update()
 
+        # noinspection PyUnusedLocal
         def validar_usuario(e):
             texto = user_field.value.strip()
             if len(texto) < 5:
