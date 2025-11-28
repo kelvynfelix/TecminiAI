@@ -4,7 +4,9 @@ from time import sleep
 import flet as ft
 import API
 from usuarios import validar_login, criar_usuario, usuario_existe
+from voice import speak_text
 
+text_resp = None
 # ---------------------------------------------------
 # Função segura para UI
 # ---------------------------------------------------
@@ -167,17 +169,40 @@ class ChatApp(ft.Column):
 
     # bolha do bot (usa parse_message)
     def create_bot_bubble(self, raw_text):
+        # Processa o texto do bot (links, negrito, listas etc)
         content = self.parse_message(raw_text)
+
+        # Botão de "ouvir" (por enquanto só chama speak_text)
+        speak_btn = ft.IconButton(
+            icon=ft.Icons.VOLUME_UP,
+            icon_color="#B20000",
+            tooltip="Ler em voz alta",
+            on_click=lambda *args: speak_text(raw_text)
+        )
+
+        # Retorna a bolha com o texto + botão
         return ft.Row(
             alignment=ft.MainAxisAlignment.START,
             controls=[
                 ft.Container(
-                    content=ft.Column(controls=content, spacing=5, tight=True),
+                    content=ft.Row(
+                        controls=[
+                            ft.Column(
+                                controls=content,
+                                spacing=5,
+                                tight=True,
+                                expand=True
+                            ),
+                            speak_btn
+                        ],
+                        alignment=ft.MainAxisAlignment.START,
+                        vertical_alignment=ft.CrossAxisAlignment.START
+                    ),
                     bgcolor=ft.Colors.with_opacity(0.3, "WHITE"),
                     padding=12,
                     border_radius=ft.border_radius.all(12),
                     margin=ft.margin.only(right=80),
-                    width=520,
+                    width=600,
                 )
             ],
         )
