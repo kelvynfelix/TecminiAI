@@ -3,15 +3,9 @@
         {
             "nome": "kelvyn",
             "username": "bloodspider",
-            "password": "12344",
-            "memory": {
-            }
-        },
-        {
-            "nome": "jonas perez",
-            "username": "jonasnpc",
             "password": "12345",
             "memory": {
+                "nome_usuario": "Kelvyn"
             }
         }
     ]
